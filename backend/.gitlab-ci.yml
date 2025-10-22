@@ -1,0 +1,7 @@
+include:
+  - project: 'E-DEVLET/gitops/cicd-templates'
+    file:
+      - 'edk-tsat/.gitlab-ci-java-k8s.yml'
+      - 'edk-tsat/.fortify-mvn-gitlab-ci-jdk8.yml'
+      - 'edk-tsat/.iqserver-base-jar-gitlab-ci.yml'
+      - 'edk-tsat/.sonarqube-gitlab-ci.yml'

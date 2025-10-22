@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: ${GSIGN_TEST_DB_URL}
+    username: ${GSIGN_TEST_DB_USERNAME}
+    password: ${GSIGN_TEST_DB_PASSWORD}
+
+external:
+  patent-analysis:
+    url: http://XXXXXX:XXXXXX/analyze

@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: ${GSIGN_PROD_DB_URL}
+    username: ${GSIGN_PROD_DB_USERNAME}
+    password: ${GSIGN_PROD_DB_PASSWORD}
+
+external:
+  patent-analysis:
+    url: http://XXXXXX:XXXXXX/analyze
+
+logging:
+  level:
+    org.springframework.jdbc.core: ERROR

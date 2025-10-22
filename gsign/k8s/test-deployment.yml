@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gsign-frontend
+  namespace: gsign
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gsign-frontend
+  template:
+    metadata:
+      labels:
+        app: gsign-frontend
+    spec:
+      automountServiceAccountToken: false
+      volumes:
+        - name: next-temp
+          emptyDir: {}
+      containers:
+      - name: gsign-frontend
+        image: $TAG
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 200m
+            memory: 400M
+          requests:
+            cpu: 100m
+            memory: 200M
+        volumeMounts:
+          - name: next-temp
+            mountPath: /app/.next/cache/
+        securityContext:
+          runAsUser: 1001
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+              - ALL
+      imagePullSecrets:
+        - name: git-regcred

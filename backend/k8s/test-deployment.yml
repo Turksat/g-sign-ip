@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gsign-server
+  namespace: gsign
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gsign-server
+  template:
+    metadata:
+      labels:
+        app: gsign-server
+    spec:
+      # affinity:
+      #   podAntiAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #     - labelSelector:
+      #         matchExpressions:
+      #         - key: app
+      #           operator: In
+      #           values:
+      #           - gsign-server
+      #       topologyKey: "kubernetes.io/hostname"
+      volumes:
+      - name: pinpoint-logs-dir
+        emptyDir: {}
+      #- name: logs-dir
+      #  hostPath:
+      #    path: /var/log/edk
+      #    type: DirectoryOrCreate
+      containers:
+      - name: gsign-server
+        image: $TAG
+        imagePullPolicy: Always
+        env:
+          - name: NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: SPRING_PROFILES_ACTIVE
+            value: $PROFILE
+          - name: TZ
+            value: Europe/Istanbul
+          - name: JAVA_OPTS
+            value: >-
+              -Dpinpoint.applicationName=gsign
+              -Dpinpoint.agentName=gsign
+              -Dpinpoint.container=gsign
+              -javaagent:/app/pinpoint-agent/pinpoint-bootstrap.jar
+              -Dprofiler.transport.grpc.collector.ip=XXXXXX
+              -Dprofiler.collector.ip=XXXXXX
+              -Djava.awt.headless=true
+              -Djava.security.egd=file:/dev/./urandom
+              -Dsun.net.client.defaultReadTimeout=10000
+              -Djavax.servlet.request.encoding=UTF-8
+              -Duser.timezone=Europe/Istanbul
+              -Dsun.net.client.defaultConnectTimeout=1000
+              -Dfile.encoding=UTF-8 
+              -DEDEV_CONFIG_HOME=/opt/eDevlet-Config
+              -DEDEVLET_CONFIG_HOME=/opt/eDevlet-Config
+              -DEDEVLET_ENV=TEST
+              -Dcom.sun.management.jmxremote
+              -Dcom.sun.management.jmxremote.port=7676
+              -Dcom.sun.management.jmxremote.rmi.port=7676
+              -Dcom.sun.management.jmxremote.authenticate=false
+              -Dcom.sun.management.jmxremote.ssl=false
+              -Dspring.profiles.active=test
+          - name: GSIGN_TEST_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: spring-gsign-secret
+                key: GSIGN_TEST_DB_PASSWORD
+          - name: GSIGN_TEST_DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: spring-gsign-secret
+                key: GSIGN_TEST_DB_URL
+          - name: GSIGN_TEST_DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: spring-gsign-secret
+                key: GSIGN_TEST_DB_USERNAME
+        ports:
+        - containerPort: 9005
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+          requests:
+            cpu: '1'
+            memory: 1Gi
+        volumeMounts:
+          - name: pinpoint-logs-dir
+            mountPath: /app/pinpoint-agent/logs
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10014
+          runAsGroup: 10014
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+      imagePullSecrets:
+        - name: git-regcred
+      automountServiceAccountToken: false

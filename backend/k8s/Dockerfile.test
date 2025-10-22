@@ -1,0 +1,31 @@
+FROM XXXXXX.turksat.com.tr/maven:3.9.9 AS builder
+RUN rm -rf /root/.m2/*
+COPY settings.xml /root/.m2/settings.xml
+COPY settings.xml /etc/maven/settings.xml
+COPY settings.xml /usr/share/maven/conf/settings.xml
+COPY settings-security.xml /root/.m2/settings-security.xml
+WORKDIR /app
+COPY . /app
+RUN mvn deploy dependency:tree dependency:list -Dmaven.test.skip=true -DgenerateBackupPoms=false -Denforcer.skip=true -s /etc/maven/settings.xml -Dsettings.security=/root/.m2/settings-security.xml
+
+
+FROM XXXXXX.turksat.com.tr/eclipse-temurin:21-jdk-alpine
+VOLUME /tmp
+WORKDIR /app
+RUN addgroup -S vmyd --gid=10014 \
+    && adduser -S -G vmyd --uid=10014 --home /app vmyd
+
+ADD https://XXXXXX.com.tr/repository/helm-shared-repository/pinpoint-agent/pinpoint-agent.tar /pinpoint-agent.tar
+RUN tar -xvf /pinpoint-agent.tar
+RUN mv pinpoint-agent-2.5.3 pinpoint-agent
+RUN rm -rf /pinpoint-agent.tar
+ENV EDEVLET_CONFIG_HOME /opt/eDevlet-Config
+ENV EDEV_CONFIG_HOME /opt/eDevlet-Config
+ENV JAVA_OPTS="$JAVA_OPTS"
+COPY --from=builder /app/target/*.jar /app/EU_Patent_Registration_Project.jar
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN chown -R vmyd:vmyd /app
+USER vmyd
+ENV PORT 9005
+EXPOSE $PORT
+ENTRYPOINT exec java $JAVA_OPTS -Duser.timezone=Europe/Istanbul -Dserver.port=${PORT} -jar /app/EU_Patent_Registration_Project.jar

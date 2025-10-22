@@ -1,0 +1,62 @@
+include:
+  - project: 'E-DEVLET/gitops/cicd-templates'
+    file:
+      - 'edk-tsat/.gitlab-ci-images.yml'
+      - 'edk-tsat/.fortify-mvn-gitlab-ci-jdk8.yml'
+      - 'edk-tsat/.iqserver-multi-gitlab-ci.yml'
+      - 'edk-tsat/.sonarqube-gitlab-ci.yml'
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - build_push
+  - security
+  - deploy
+
+Test Build:
+  stage: build_push
+  script:
+    - echo "{\"auths\":{\"$GITLAB_CI_REGISTRY\":{\"username\":\"$GITLAB_CI_REGISTRY_USER\",\"password\":\"$GITLAB_CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --force --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/k8s/Dockerfile.test --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA --build-arg EXTRA_HOSTS="X.X.X.X XXXXXX.turksat.com.tr"
+  only:
+    - development
+  tags:
+    - talos-test-edk-deploy-runner
+
+Test Deploy:
+  extends: .base_test
+  stage: deploy
+  script:
+    - export IMAGE=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA
+    - sed -i --expression s@'$TAG'@$IMAGE@g $CI_PROJECT_DIR/k8s/test-deployment.yml
+    - kubectl apply -f $CI_PROJECT_DIR/k8s/test-deployment.yml
+    - kubectl apply -f $CI_PROJECT_DIR/k8s/service.yml
+  only:
+    - development
+  needs:
+    - job: Test Build
+
+
+Prod Build:
+  stage: build_push
+  script:
+    - echo "{\"auths\":{\"$GITLAB_CI_REGISTRY\":{\"username\":\"$GITLAB_CI_REGISTRY_USER\",\"password\":\"$GITLAB_CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --force --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/k8s/Dockerfile.prod --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA --build-arg EXTRA_HOSTS="X.X.X.X XXXXXX.turksat.com.tr"
+  only:
+    - master
+  tags:
+    - talos-test-edk-deploy-runner
+
+Prod Deploy:
+  extends: .base_prod
+  stage: deploy
+  script:
+    - export IMAGE=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA
+    - sed -i --expression s@'$TAG'@$IMAGE@g $CI_PROJECT_DIR/k8s/prod-deployment.yml
+    - kubectl apply -f $CI_PROJECT_DIR/k8s/prod-deployment.yml
+    - kubectl apply -f $CI_PROJECT_DIR/k8s/service.yml
+  only:
+    - master
+  needs:
+    - job: Prod Build

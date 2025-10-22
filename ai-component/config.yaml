@@ -1,0 +1,151 @@
+# Configuration for the Patent RAG System
+
+# --- File Paths ---
+# Path to the input CSV data containing patent information
+patent_data_file: "patent_data.csv"
+# Prefix for saving and loading the FAISS index and metadata files
+index_save_prefix: "patent_index"
+# File to store checkpoint information during the indexing process
+checkpoint_file: "training_checkpoint.json"
+# File to log problematic documents that should be skipped
+blacklist_file: "problem_documents.json"
+
+
+models:
+  primary_embedding: "Qwen/Qwen3-Embedding-4B"
+  secondary_embedding: "AI-Growth-Lab/PatentSBERTa"
+  reranker: "Qwen/Qwen3-Reranker-4B"
+
+llm_config:
+  backend: "llamacpp"
+  
+  transformers:
+    model: "google/gemma-3-27b-it"
+    quantization:
+      enabled: true
+      load_in_4bit: true
+      bnb_4bit_quant_type: "nf4"
+      bnb_4bit_compute_dtype: "bfloat16"
+    generation:
+      max_new_tokens: 1000
+      temperature: 0.7
+      do_sample: true
+  
+  llamacpp:
+    active_model: "qwen3_30b_thinking"
+
+    models:
+      qwen3_30b:
+        repo_id: "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
+        filename: "Qwen3-30B-A3B-Instruct-2507-UD-Q4_K_XL.gguf"
+        n_ctx: 32768
+        n_gpu_layers: -1
+        n_threads: null
+        verbose: false
+        generation:
+          max_tokens: 32768
+          temperature: 0.3
+          min_p: 0.0
+          top_p: 0.95
+          top_k: 20
+          repeat_penalty: 1.1
+          stop_sequences: []
+      qwen3_30b_thinking:
+        repo_id: "unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF"
+        filename: "Qwen3-30B-A3B-Thinking-2507-UD-Q4_K_XL.gguf"
+        n_ctx: 32768
+        n_gpu_layers: -1
+        n_threads: null
+        verbose: false
+        generation:
+          max_tokens: 8192
+          temperature: 0.1
+          min_p: 0.0
+          top_p: 0.95
+          top_k: 20
+          repeat_penalty: 1.1
+          stop_sequences: []
+      
+      gemma3_27b:
+        repo_id: "bartowski/google_gemma-3-27b-it-GGUF"
+        filename: "google_gemma-3-27b-it-Q6_K.gguf"
+        n_ctx: 16384
+        n_gpu_layers: -1
+        n_threads: null
+        verbose: false
+        generation:
+          max_tokens: 8192
+          temperature: 0.7
+          top_p: 0.95
+          top_k: 40
+          repeat_penalty: 1.1
+          stop_sequences: []
+      
+      gpt_oss_20b:
+        repo_id: "unsloth/gpt-oss-20b-GGUF"
+        filename: "gpt-oss-20b-F16.gguf"
+        n_ctx: 32768
+        n_gpu_layers: -1
+        n_threads: null
+        verbose: false
+        generation:
+          max_tokens: 16384
+          temperature: 0.7
+          top_p: 0.95
+          top_k: 40
+          repeat_penalty: 1.1
+          stop_sequences: []
+
+# --- Embedding Dimensions ---
+# The output dimension of each embedding model. Must match the model's architecture.
+embedding_dims:
+  primary: 2560  # Qwen/Qwen3-Embedding-4B
+  secondary: 768 # AI-Growth-Lab/PatentSBERTa
+
+# --- Indexing Parameters ---
+indexing:
+  # Total number of documents to process from the CSV file
+  total_docs: 90000
+  # Number of documents to process in each stage (for checkpointing)
+  docs_per_stage: 10000
+  # Maximum text length (in characters) for a document's searchable content.
+  # Documents exceeding this are truncated or skipped.
+  max_text_length: 16384
+
+# --- RAG System Hyperparameters ---
+retrieval:
+  # Number of candidates to retrieve from the primary model's vector store
+  initial_k: 200
+  # Number of candidates to retrieve from the secondary model's vector store
+  secondary_k: 100
+  # Number of top candidates from the hybrid retrieval stage to pass to the reranker
+  rerank_k: 50
+  # Constant used in the Reciprocal Rank Fusion (RRF) formula
+  rrf_k: 60
+  # Similarity score threshold for novelty analysis
+  similarity_threshold: 0.5
+
+# --- New: Enhanced Features ---
+deduplication:
+  # Remove duplicate patents from same family
+  by_family: false
+  # Prefer granted patents over applications in same family
+  prefer_granted: true
+
+temporal_analysis:
+  # Enable temporal filtering in results
+  enabled: true
+  # Weight recent patents higher (0.0 = no weighting, 1.0 = strong weighting)
+  recency_weight: 0.1
+
+citation_analysis:
+  # Include citation-based features
+  enabled: true
+  # Maximum citations to include in results
+  max_citations_display: 5
+
+classification:
+  # Enhanced classification code processing
+  include_technology_areas: true
+  # Limit displayed codes per patent
+  max_codes_display: 10
